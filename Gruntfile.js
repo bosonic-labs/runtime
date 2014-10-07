@@ -24,11 +24,30 @@ module.exports = function(grunt) {
         src: polyfillFiles,
         dest: 'dist/bosonic-runtime.js'
       }
+    },
+
+    connect: {
+      test: {
+        options: {
+          port: 8020,
+          base: ['dist', 'node_modules', 'test'],
+          hostname: '*'
+        }
+      }
+    },
+
+    watch: {
+      polyfills: {
+        files: ['src/*.js'],
+        tasks: ['concat']
+      }
     }
   });
 
   grunt.loadNpmTasks('grunt-contrib-concat');
+  grunt.loadNpmTasks('grunt-contrib-connect');
+  grunt.loadNpmTasks('grunt-contrib-watch');
 
-  grunt.registerTask('default', ['concat']);
+  grunt.registerTask('default', ['concat', 'connect', 'watch']);
 
 };

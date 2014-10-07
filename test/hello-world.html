@@ -1,0 +1,21 @@
+<element name="hello-world">
+    <template>
+        <h1>Hello world</h1>
+        <h2><content></content></h2>
+    </template>
+    <script>
+        Bosonic.register({
+            get test() {
+                return 'test';
+            },
+
+            createdCallback: function() {
+                console.log('created');
+            },
+
+            foo: function() {
+                
+            }
+        });
+    </script>
+</element>
