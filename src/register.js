@@ -50,6 +50,25 @@ function camelize(str) {
     return ucfirst(camelized);
 }
 
+function extendsNativeElement(extendee) {
+    if (!extendee) return false;
+    return extendee.indexOf('-') === -1;
+}
+
+function getExtendeeClass(extendee) {
+    if (!extendee) {
+        return 'HTMLElement'
+    } else if (extendsNativeElement(extendee)) {
+        if (['thead', 'tbody', 'tfoot'].indexOf(extendee) !== -1) {
+            return 'HTMLTableSectionElement';
+        } else {
+            return 'HTML' + camelize(extendee) + 'Element';
+        }
+    } else {
+        return camelize(extendee);
+    }
+}
+
 function scopeShadowStyles(root, name) {
     var styles = root.querySelectorAll('style');
     Array.prototype.forEach.call(styles, function(style) {
@@ -84,6 +103,12 @@ Bosonic.register = function(options) {
         throw 'Element name could not be inferred.';
     }
 
+    var attributes = element.getAttribute('attributes'),
+        extendee = element.getAttribute('extends'),
+        extendsNativeElt = extendsNativeElement(extendee),
+        elementClass = camelize(name),
+        extendeeClass = getExtendeeClass(extendee);
+
     var template = script && script.parentNode ? script.parentNode.querySelector('template') : null;
 
     var prototype = {};
@@ -105,13 +130,35 @@ Bosonic.register = function(options) {
         };
     }
 
+    if (attributes) {
+        var changed = options.attributeChangedCallback,
+            attrs = attributes.split(' ');
+
+        if (changed) delete options.attributeChangedCallback;
+        prototype.attributeChangedCallback = {
+            enumerable: true,
+            writable: true,
+            value: function(name, oldValue, newValue) {
+                if (attrs.indexOf(name) !== -1 && this[name + 'Changed']) {
+                    this[name + 'Changed'].call(this, oldValue, newValue);
+                }
+                return changed ? changed.apply(this, arguments) : null;
+            }
+        };
+    }
+
     for (var key in options) {
         if (options.hasOwnProperty(key)) {
             prototype[key] = Object.getOwnPropertyDescriptor(options, key);
         }
     }
 
-    window[camelize(name)] = document.registerElement(name, {
-        prototype: Object.create(HTMLElement.prototype, prototype)
-    });
+    var elementDef = {
+        prototype: Object.create(window[extendeeClass].prototype, prototype)
+    };
+    if (extendee && extendsNativeElt) { 
+        elementDef.extends = extendee;
+    }
+
+    window[elementClass] = document.registerElement(name, elementDef);
 }
