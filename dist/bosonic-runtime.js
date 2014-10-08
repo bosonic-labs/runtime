@@ -1,7 +1,3 @@
-if (!window.Platform) {
-    window.Platform = {};
-}
-var logFlags = {};
 /*
  * Copyright 2012 The Polymer Authors. All rights reserved.
  * Use of this source code is governed by a BSD-style
@@ -1608,6 +1604,42 @@ if (!HTMLImports.useNative) {
 
 })();
 
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+if (!window.Platform || !window.Platform.name) {
+    throw 'Bosonic runtime needs the Bosonic platform to be loaded first.';
+}
+
+function buildShadowRegexes(elementName) {
+    return [
+        [/:host\(([^:]+)\)/g, elementName+'$1'],
+        [/:host(:hover|:active|:focus)/g, elementName+'$1'],
+        [/:host(\[[^:]+\])/g, elementName+'$1'],
+        [/:host/g, elementName],
+        [/:ancestor\(([^:]+)\)/g, '$1 '+elementName], // deprecated; replaced by :host-context
+        [/:host-context\(([^:]+)\)/g, '$1 '+elementName],
+        [/::content/g, elementName],
+    ];
+}
+
+function shimStyles(styles, elementName) {
+    var selectorRegexes = buildShadowRegexes(elementName);
+    for (var i = 0; i < selectorRegexes.length; i++) {
+        var re = selectorRegexes[i];
+        styles = styles.replace(re[0], re[1]);
+    }
+    return styles;
+}
+
+function parseCSS(str) {
+    var doc = document.implementation.createHTMLDocument(''),
+        styleElt = document.createElement("style");
+    
+    styleElt.textContent = str;
+    doc.body.appendChild(styleElt);
+    
+    return styleElt.sheet.cssRules;
+}
+
 if (!window.Bosonic) {
     window.Bosonic = {};
 }
@@ -1623,6 +1655,29 @@ function camelize(str) {
         return match.toLowerCase();
     });
     return ucfirst(camelized);
+}
+
+function scopeShadowStyles(root, name) {
+    var styles = root.querySelectorAll('style');
+    Array.prototype.forEach.call(styles, function(style) {
+        var rules = parseCSS(shimStyles(style.textContent, name));
+        var css = '';
+        Array.prototype.forEach.call(rules, function(rule) {
+            if (!rule.selectorText.match(new RegExp(name))) {
+                css += name + ' ' + rule.cssText + '\n';
+                css += name + '::shadow ' + rule.cssText + '\n';
+            } else {
+                css += rule.cssText + '\n';
+            }
+        });
+        var s = document.createElement('style');
+        s.textContent = css;
+        document.head.appendChild(s);
+        // if we have a prefixed (and therefore flaky) native impl., we keep the <style> in the shadow root, just in case
+        if (Platform.shadowDOM !== 'prefixed') {
+            style.parentNode.removeChild(style);
+        }
+    });
 }
 
 Bosonic.register = function(options) {
@@ -1648,7 +1703,10 @@ Bosonic.register = function(options) {
             writable: true,
             value: function() {
                 this.createShadowRoot();
-                this.shadowRoot.appendChild(template.content.cloneNode(true));
+                this.shadowRoot.appendChild(document.importNode(template.content, true));
+                if (Platform.shadowDOM !== 'native') {
+                    scopeShadowStyles(this.shadowRoot, name);
+                }
                 return created ? created.apply(this, arguments) : null;
             }
         };
@@ -1664,3 +1722,4 @@ Bosonic.register = function(options) {
         prototype: Object.create(HTMLElement.prototype, prototype)
     });
 }
+},{}]},{},[1]);

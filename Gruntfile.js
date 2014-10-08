@@ -3,8 +3,6 @@
 module.exports = function(grunt) {
   
   var polyfillFiles = [
-    'src/bootstrap.js',
-
     'lib/WeakMap/weakmap.js',
     'lib/MutationObservers/MutationObserver.js',
     'lib/HTMLImports/src/scope.js',
@@ -15,10 +13,18 @@ module.exports = function(grunt) {
     'lib/HTMLImports/src/Observer.js',
     'lib/HTMLImports/src/boot.js',
 
-    'src/register.js'
+    'tmp/register.js'
   ];
 
   grunt.initConfig({
+    browserify: {
+      dist: {
+        files: {
+          'tmp/register.js': ['src/register.js'],
+        }
+      }
+    },
+
     concat: {
       polyfills: {
         src: polyfillFiles,
@@ -47,7 +53,8 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-concat');
   grunt.loadNpmTasks('grunt-contrib-connect');
   grunt.loadNpmTasks('grunt-contrib-watch');
+  grunt.loadNpmTasks('grunt-browserify');
 
-  grunt.registerTask('default', ['concat', 'connect', 'watch']);
+  grunt.registerTask('default', ['browserify', 'concat', 'connect', 'watch']);
 
 };
